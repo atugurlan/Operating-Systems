@@ -7,6 +7,8 @@
 
 #define NUMBER_OF_COMMANDS 10
 
+void reset_commands(char *name);
+
 void menu_regular_files() {
     printf("--- MENU ---\n");
     printf("Name: -n\n");
@@ -75,7 +77,7 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
                 }
                 break;
             default:
-                printf("Unknown command\n");
+                reset_commands(name);
 
         }
     }
@@ -104,7 +106,7 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
                 check_access_rights(link.st_mode);
                 break;
             default:
-                printf("Unknown command\n");
+                reset_commands(name);
         }
         if(commands[i]=='l' && i<strlen(commands)-1) {
             printf("The rest of the commands will not be performed\n");
@@ -165,4 +167,9 @@ int main(int argc, char **argv) {
     }
 
     return 0;
+}
+
+void reset_commands(char name[]) {
+    printf("\n\nRenter the commands:\n");
+    check_type(name);
 }
