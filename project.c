@@ -138,6 +138,8 @@ char* get_commands() {
 
 void check_correctness_commands(char commands[], char name[]) {
     if(commands[0]!='-') {
+        printf("\n\nThe commands you entered are in the wrong format\n");
+        printf("Please enter the commands instructions as follow: -xyzetc, where x, y, z etc are the commands in questions\n");
         reset_commands(name);
     }
 }
