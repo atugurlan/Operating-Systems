@@ -15,7 +15,6 @@ void menu_regular_files() {
     printf("Time of last modification: -m\n");
     printf("Access rights: -a\n");
     printf("Create symbolic link: -l\n");
-    printf("Please insert the desired options: ");
 }
 
 void menu_symbolic_link() {
@@ -25,7 +24,6 @@ void menu_symbolic_link() {
     printf("Size of symbolic link: -d\n");
     printf("Size of targeted file: -t\n");
     printf("Access rights: -a\n");
-    printf("Please insert the desired options: ");
 }
 
 void check_access_rights(mode_t mode) {
@@ -66,9 +64,15 @@ void commands_regular_files(char *name, char commands[NUMBER_OF_COMMANDS]) {
                 break;
             case 'l': 
                 printf("Please enter the name of the link: ");
-                char *link_name;
+                char link_name[20];
                 scanf("%s", link_name);
-                symlink(name, link_name);
+                if(symlink(name, link_name)==0) {
+                    printf("Link created succesfully\n");
+                }
+                else {
+                    printf("Error\n");
+                    exit(1);
+                }
                 break;
             default:
                 printf("Unknown command\n");
@@ -102,10 +106,52 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
             default:
                 printf("Unknown command\n");
         }
-        if(commands[i]=='l') {
+        if(commands[i]=='l' && i<strlen(commands)-1) {
             printf("The rest of the commands will not be performed\n");
             break;
         }
+    }
+}
+
+char* get_commands() {
+    char *commands;
+    commands = (char*) malloc(NUMBER_OF_COMMANDS*sizeof(char));
+    printf("Please insert the desired options: ");
+    scanf("%s", commands);
+
+    if(commands[0]!='-') {
+        printf("Wrong input\n");
+        exit(1);
+    }
+
+    return commands;
+}
+
+void check_type(char name[]) {
+    char commands[NUMBER_OF_COMMANDS];
+    struct stat st;
+
+    lstat(name, &st);
+    if(S_ISREG(st.st_mode)==0) {
+        printf("%s - REGULAR FILE\n", name);
+        menu_regular_files();
+        strcpy(commands, get_commands());
+        commands_regular_files(name, commands);
+        return;
+    else if(S_ISLNK(st.st_mode)) {
+        printf("%s - SYMBOLIC LINK\n", name);
+        menu_symbolic_link();
+        strcpy(commands, get_commands());
+        commands_symbolic_links(name, commands);
+        return;
+    }
+    else if(S_ISDIR(st.st_mode)) {
+        printf("%s - DIRECTORY\n", name);
+        return;
+    }
+    else {
+        printf("%s - UNKNOWN\n", name);
+        return;
     }
 }
 
@@ -116,23 +162,9 @@ int main(int argc, char **argv) {
     }
 
     struct stat st;
-    char commands[NUMBER_OF_COMMANDS];
 
     for(int i=1;i<argc;i++) {
-        if(lstat(argv[i], &st) == 0) {
-            printf("%s - SYMBOLIC LINK\n", argv[i]);
-            menu_symbolic_link();
-            scanf("%s", commands);
-            commands_symbolic_links(argv[i], commands);
-        }
-
-        if(stat(argv[i], &st)==0) {
-            printf("%s - SYMBOLIC LINK\n", argv[i]);
-            menu_regular_files();
-            scanf("%s", commands);
-            commands_regular_files(argv[i], commands);
-        }
-        
+        check_type(argv[i]);
     }
 
     return 0;
