@@ -45,7 +45,10 @@ void check_access_rights(mode_t mode) {
 
 void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
     struct stat st;
-    stat(name, &st);
+    if(stat(name, &st)==-1) {
+        printf("Error stat() for regular file in commands_regular_files\n");
+        exit(1);
+    }
 
     for(int i=1;i<strlen(commands);i++) {
         switch(commands[i]) {
@@ -59,7 +62,7 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
                 printf("Hard link count: %ld\n", st.st_nlink);
                 break;
             case 'm':
-                printf("Time of last modification: %s\n", ctime(&st.st_mtime));
+                printf("Time of last modification: %s", ctime(&st.st_mtime));
                 break;
             case 'a': 
                 check_access_rights(st.st_mode);
@@ -72,20 +75,22 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
                     printf("Link created succesfully\n");
                 }
                 else {
-                    printf("Error\n");
+                    printf("Error creting the symlink\n");
                     exit(1);
                 }
                 break;
             default:
                 reset_commands(name);
-
         }
     }
 }
 
 void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
     struct stat link, targeted_file;
-    lstat(name, &link);
+    if(lstat(name, &link)==-1) {
+        printf("Error lstat() for symlink in commands_symbolic_links\n");
+        exit(1);
+    }
     for(int i=1;i<strlen(commands);i++) {
         switch(commands[i]) {
             case 'n':
@@ -99,7 +104,10 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
                 printf("Size of the symbolic link: %ld\n", link.st_size);
                 break;
             case 't':
-                stat(name, &targeted_file);
+                if(stat(name, &targeted_file)==-1) {
+                    printf("error stat() for targeted file in commands_symbolic_links\n)");
+                    exit(1);
+                }
                 printf("Size of the targeted file: %ld\n", targeted_file.st_size);
                 break;
             case 'a':
@@ -109,7 +117,7 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
                 reset_commands(name);
         }
         if(commands[i]=='l' && i<strlen(commands)-1) {
-            printf("The rest of the commands will not be performed\n");
+            printf("The rest of the commands will not be performed, because the link was deleted\n");
             break;
         }
     }
@@ -118,32 +126,42 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
 char* get_commands() {
     char *commands;
     commands = (char*) malloc(NUMBER_OF_COMMANDS*sizeof(char));
+    if(commands==NULL) {
+        printf("Error malloc() for the commands string in get_commands\n");
+        exit(1);
+    }
     printf("Please insert the desired options: ");
     scanf("%s", commands);
 
-    if(commands[0]!='-') {
-        printf("Wrong input\n");
-        exit(1);
-    }
-
     return commands;
+}
+
+void check_correctness_commands(char commands[], char name[]) {
+    if(commands[0]!='-') {
+        reset_commands(name);
+    }
 }
 
 void check_type(char name[]) {
     char commands[NUMBER_OF_COMMANDS];
     struct stat st;
 
-    lstat(name, &st);
+    if(lstat(name, &st)==-1) {
+        printf("Error lstat() in function check_type\n");
+        exit(1);
+    }
     if(S_ISREG(st.st_mode)) {
         printf("%s - REGULAR FILE\n", name);
         menu_regular_files();
         strcpy(commands, get_commands());
+        check_correctness_commands(commands, name);
         commands_regular_files(name, commands);
     }
     else if(S_ISLNK(st.st_mode)) {
         printf("%s - SYMBOLIC LINK\n", name);
         menu_symbolic_link();
         strcpy(commands, get_commands());
+        check_correctness_commands(commands, name);
         commands_symbolic_links(name, commands);
     }
     else if(S_ISDIR(st.st_mode)) {
@@ -160,8 +178,6 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    struct stat st;
-
     for(int i=1;i<argc;i++) {
         check_type(argv[i]);
     }
@@ -173,3 +189,5 @@ void reset_commands(char name[]) {
     printf("\n\nRenter the commands:\n");
     check_type(name);
 }
+
+//add the errors!!!!
