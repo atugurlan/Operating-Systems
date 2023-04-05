@@ -137,21 +137,18 @@ void check_type(char name[]) {
         menu_regular_files();
         strcpy(commands, get_commands());
         commands_regular_files(name, commands);
-        return;
+    }
     else if(S_ISLNK(st.st_mode)) {
         printf("%s - SYMBOLIC LINK\n", name);
         menu_symbolic_link();
         strcpy(commands, get_commands());
         commands_symbolic_links(name, commands);
-        return;
     }
     else if(S_ISDIR(st.st_mode)) {
         printf("%s - DIRECTORY\n", name);
-        return;
     }
     else {
         printf("%s - UNKNOWN\n", name);
-        return;
     }
 }
 
