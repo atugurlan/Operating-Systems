@@ -142,8 +142,25 @@ void check_correctness_commands(char commands[], char name[]) {
     }
 }
 
-void check_type(char name[]) {
+void execute_commands_for_regular_file(char name[]) {
     char commands[NUMBER_OF_COMMANDS];
+
+    menu_regular_files();
+    strcpy(commands, get_commands());
+    check_correctness_commands(commands, name);
+    commands_regular_files(name, commands);
+}
+
+void execute_commands_for_symbolic_link(char name[]) {
+    char commands[NUMBER_OF_COMMANDS];
+
+    menu_symbolic_link();
+    strcpy(commands, get_commands());
+    check_correctness_commands(commands, name);
+    commands_symbolic_links(name, commands);
+}
+
+void check_type(char name[]) {
     struct stat st;
 
     if(lstat(name, &st)==-1) {
@@ -152,17 +169,11 @@ void check_type(char name[]) {
     }
     if(S_ISREG(st.st_mode)) {
         printf("%s - REGULAR FILE\n", name);
-        menu_regular_files();
-        strcpy(commands, get_commands());
-        check_correctness_commands(commands, name);
-        commands_regular_files(name, commands);
+        execute_commands_for_regular_file(name);
     }
     else if(S_ISLNK(st.st_mode)) {
         printf("%s - SYMBOLIC LINK\n", name);
-        menu_symbolic_link();
-        strcpy(commands, get_commands());
-        check_correctness_commands(commands, name);
-        commands_symbolic_links(name, commands);
+        execute_commands_for_symbolic_link(name);
     }
     else if(S_ISDIR(st.st_mode)) {
         printf("%s - DIRECTORY\n", name);
