@@ -75,7 +75,7 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
                     printf("Link created succesfully\n");
                 }
                 else {
-                    printf("Error creting the symlink\n");
+                    printf("Error creating the symlink\n");
                     exit(1);
                 }
                 break;
@@ -91,14 +91,20 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
         printf("Error lstat() for symlink in commands_symbolic_links\n");
         exit(1);
     }
+
     for(int i=1;i<strlen(commands);i++) {
         switch(commands[i]) {
             case 'n':
                 printf("Name of the symbolic link: %s\n", name);
                 break;
             case 'l':
-                printf("Delete the symbolic link\n");
-                unlink(name);
+                if(unlink(name)==-1) {
+                        printf("error unlink() in commands_symbolic_links\n");
+                        exit(1);
+                }
+                else {
+                    printf("Successfully delete the symbolic link\n");
+                }
                 break;
             case 'd':
                 printf("Size of the symbolic link: %ld\n", link.st_size);
@@ -169,6 +175,7 @@ void check_type(char name[]) {
         printf("Error lstat() in function check_type\n");
         exit(1);
     }
+
     if(S_ISREG(st.st_mode)) {
         printf("%s - REGULAR FILE\n", name);
         execute_commands_for_regular_file(name);
