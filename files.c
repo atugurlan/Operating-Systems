@@ -41,7 +41,7 @@ void check_access_rights(mode_t mode) {
     printf("Exec - %s\n", ((mode & 0b1)!=0) ? "Yes" : "No");
 }
 
-void commands_regular_files(char *name, char commands[NUMBER_OF_COMMANDS]) {
+void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
     struct stat st;
     stat(name, &st);
 
@@ -132,7 +132,7 @@ void check_type(char name[]) {
     struct stat st;
 
     lstat(name, &st);
-    if(S_ISREG(st.st_mode)==0) {
+    if(S_ISREG(st.st_mode)) {
         printf("%s - REGULAR FILE\n", name);
         menu_regular_files();
         strcpy(commands, get_commands());
