@@ -180,7 +180,7 @@ void execute_commands_for_symbolic_link(char name[]) {
     commands_symbolic_links(name, commands);
 }
 
-void execute_commands_for_symbolic_link(char name[]) {
+void execute_commands_for_directory(char name[]) {
     char commands[NUMBER_OF_COMMANDS];
 
     menu_directories();
@@ -207,6 +207,7 @@ void check_type(char name[]) {
     }
     else if(S_ISDIR(st.st_mode)) {
         printf("%s - DIRECTORY\n", name);
+        execute_commands_for_directory(name);
     }
     else {
         printf("%s - UNKNOWN\n", name);
