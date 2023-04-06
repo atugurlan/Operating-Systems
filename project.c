@@ -28,6 +28,14 @@ void menu_symbolic_link() {
     printf("Access rights: -a\n");
 }
 
+void menu_directories() {
+    printf("---MENU---\n");
+    printf("Name: -n\n");
+    printf("Size: -d\n");
+    printf("Access rights: -a\n");
+    printf("Count how many c files there are in the directory: -c\n");
+}
+
 void check_access_rights(mode_t mode) {
     printf("User:\n");
     printf("Read - %s\n", ((mode & 0b100000000)!=0) ? "Yes" : "No");
@@ -129,6 +137,10 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
     }
 }
 
+void commands_directory(char *name, char commands[]) {
+
+}
+
 char* get_commands() {
     char *commands;
     commands = (char*) malloc(NUMBER_OF_COMMANDS*sizeof(char));
@@ -166,6 +178,15 @@ void execute_commands_for_symbolic_link(char name[]) {
     strcpy(commands, get_commands());
     check_correctness_commands(commands, name);
     commands_symbolic_links(name, commands);
+}
+
+void execute_commands_for_symbolic_link(char name[]) {
+    char commands[NUMBER_OF_COMMANDS];
+
+    menu_directories();
+    strcpy(commands, get_commands());
+    check_correctness_commands(commands, name);
+    commands_directory(name, commands);
 }
 
 void check_type(char name[]) {
