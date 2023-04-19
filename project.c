@@ -4,6 +4,7 @@
 #include<sys/stat.h>
 #include<time.h>
 #include<unistd.h>
+#include<dirent.h>
 
 #define NUMBER_OF_COMMANDS 10
 
@@ -38,17 +39,17 @@ void menu_directories() {
 
 void check_access_rights(mode_t mode) {
     printf("User:\n");
-    printf("Read - %s\n", ((mode & 0b100000000)!=0) ? "Yes" : "No");
-    printf("Write - %s\n", ((mode & 0b10000000)!=0) ? "Yes" : "No");
-    printf("Exec - %s\n", ((mode & 0b1000000)!=0) ? "Yes" : "No");
+    printf("Read - %s\n", ((mode & S_IRUSR)!=0) ? "Yes" : "No");
+    printf("Write - %s\n", ((mode & S_IWUSR)!=0) ? "Yes" : "No");
+    printf("Exec - %s\n", ((mode & S_IXUSR)!=0) ? "Yes" : "No");
     printf("Group:\n");
-    printf("Read - %s\n", ((mode & 0b100000)!=0) ? "Yes" : "No");
-    printf("Write - %s\n", ((mode & 0b10000)!=0) ? "Yes" : "No");
-    printf("Exec - %s\n", ((mode & 0b1000)!=0) ? "Yes" : "No");
+    printf("Read - %s\n", ((mode & S_IRGRP)!=0) ? "Yes" : "No");
+    printf("Write - %s\n", ((mode & S_IWGRP)!=0) ? "Yes" : "No");
+    printf("Exec - %s\n", ((mode & S_IXGRP)!=0) ? "Yes" : "No");
     printf("Others:\n");
-    printf("Read - %s\n", ((mode & 0b100)!=0) ? "Yes" : "No");
-    printf("Write - %s\n", ((mode & 0b10)!=0) ? "Yes" : "No");
-    printf("Exec - %s\n", ((mode & 0b1)!=0) ? "Yes" : "No");
+    printf("Read - %s\n", ((mode & S_IROTH)!=0) ? "Yes" : "No");
+    printf("Write - %s\n", ((mode & S_IWOTH)!=0) ? "Yes" : "No");
+    printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
 
 void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
@@ -56,6 +57,14 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
     if(stat(name, &st)==-1) {
         printf("Error stat() for regular file in commands_regular_files\n");
         exit(1);
+    }
+
+    char letters[7] = "ndhmal";
+    for(int i=0;i<strlen(commands);i++) {
+        if(strchr(letters, commands[i])) {
+            printf("You entered a command that is not in the commands menu\n");
+            reset_commands(name);
+        }
     }
 
     for(int i=1;i<strlen(commands);i++) {
@@ -87,8 +96,6 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
                     exit(1);
                 }
                 break;
-            default:
-                reset_commands(name);
         }
     }
 }
@@ -98,6 +105,14 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
     if(lstat(name, &link)==-1) {
         printf("Error lstat() for symlink in commands_symbolic_links\n");
         exit(1);
+    }
+
+    char letters[5] = "nldta";
+    for(int i=0;i<strlen(commands);i++) {
+        if(strchr(letters, commands[i])) {
+            printf("You entered a command that is not in the commands menu\n");
+            reset_commands(name);
+        }
     }
 
     for(int i=1;i<strlen(commands);i++) {
@@ -127,8 +142,6 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
             case 'a':
                 check_access_rights(link.st_mode);
                 break;
-            default:
-                reset_commands(name);
         }
         if(commands[i]=='l' && i<strlen(commands)-1) {
             printf("The rest of the commands will not be performed, because the link was deleted\n");
@@ -138,7 +151,46 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
 }
 
 void commands_directory(char *name, char commands[]) {
+    DIR *dir;
+    struct dirent *entry;
+    dir = opendir(name);
 
+    if(dir==NULL) {
+        printf("Error at opening directory\n");
+        exit(1);
+    }
+
+    struct stat st;
+    lstat(name, &st);
+
+    for(int i=1;i<strlen(commands);i++) {
+        switch(commands[i]) {
+            case 'n':
+                printf("Name of the directory: %s\n", name);
+                break;
+            case 'd':
+                printf("The size of the directory: %ld\n", st.st_size);
+                break;
+            case 'a':
+                check_access_rights(st.st_mode);
+                break;
+            case 'c':
+                int count = 0;
+
+                while( (entry = readdir(dir)) != NULL ) {
+                    if( entry->d_name[strlen(entry->d_name)-2]=='.' && entry->d_name[strlen(entry->d_name)-1]=='c'  )
+                        count++;
+                }
+
+                printf("Number of C files: %d\n", count);
+                break;
+            default:
+                printf("You entered a command that is not in the commands menu\n");
+                reset_commands(name);
+        }
+    }
+
+    closedir(dir);
 }
 
 char* get_commands() {
