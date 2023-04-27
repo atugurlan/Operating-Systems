@@ -12,7 +12,7 @@ if [ ! -f "$1" ]; then
 fi
 
 #compile part
-gcc -o compile -Wall "$1" > 1 2>&1
+gcc -o compile -Wall "$1" 2>&1
 
 errors=$(grep -c 'error' 1)
 warnings=$(grep -c 'warning' 1)
