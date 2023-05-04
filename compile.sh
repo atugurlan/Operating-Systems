@@ -18,3 +18,6 @@ errors=$(grep -c 'error' 1)
 warnings=$(grep -c 'warning' 1)
 echo "Number of errors $errors"
 echo "Number of warnings $warnings"
+
+echo "int no_errors = $errors;" > project.c
+echo "int no_warnings = $warnings;" >> project.c
