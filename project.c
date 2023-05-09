@@ -62,9 +62,12 @@ int count_lines(char name[]) {
     }
 
     char c;
-    int no_lines = 0;
     c = fgetc(f);
+    if(c == EOF) {
+        return 0;
+    }
 
+    int no_lines = 1;
     while(c != EOF) {
         if(c == '\n') {
             no_lines++;
