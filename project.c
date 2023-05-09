@@ -12,6 +12,8 @@
 
 void reset_commands(char *name);
 
+
+
 void menu_regular_files() {
     printf("--- MENU ---\n");
     printf("Name: -n\n");
