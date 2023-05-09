@@ -12,8 +12,6 @@
 
 void reset_commands(char *name);
 
-
-
 void menu_regular_files() {
     printf("--- MENU ---\n");
     printf("Name: -n\n");
@@ -55,6 +53,8 @@ void check_access_rights(mode_t mode) {
     printf("Write - %s\n", ((mode & S_IWOTH)!=0) ? "Yes" : "No");
     printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
+
+// regular file commands
 
 int count_lines(char name[]) {
     FILE *f = fopen(name, "r");
@@ -185,6 +185,8 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
 
 }
 
+// symbolic link commands
+
 void change_permissions(char name[]) {
     mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
     int changed = chmod(name, permissions);
@@ -246,6 +248,8 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
 
     change_permissions(name);
 }
+
+// directory commands
 
 void create_new_file(char name[]) {
     char file_name[100];
