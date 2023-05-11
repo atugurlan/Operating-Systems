@@ -12,9 +12,8 @@ if [ ! -f "$1" ]; then
 fi
 
 #compile part
-output=$(gcc -o compile -Wall "$1" 2>&1)
+gcc -o compile -Wall "$1" > 1 2>&1
 
-errors=$(echo "$output" | grep -c 'error' 1)
-warnings=$(echo "$output" | grep -c 'warning' 1)
-
+errors=$(grep -c 'error' 1)
+warnings=$(grep -c 'warning' 1)
 echo "$errors $warnings"
