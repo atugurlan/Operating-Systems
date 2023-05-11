@@ -16,7 +16,6 @@ void reset_commands(char *name);
 void check_correctness_commands(char commands[], char name[]);
 
 //print the menu for the 3 types of inputs
-
 void menu_regular_files() {
     printf("--- MENU ---\n");
     printf("Name: -n\n");
@@ -45,7 +44,6 @@ void menu_directories() {
 }
 
 //get the access rights
-
 void check_access_rights(mode_t mode) {
     printf("User:\n");
     printf("Read - %s\n", ((mode & S_IRUSR)!=0) ? "Yes" : "No");
@@ -61,9 +59,7 @@ void check_access_rights(mode_t mode) {
     printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
 
-
 // regular file commands
-
 void c_file(char name[]) {
     if(name[strlen(name)-1]=='c' && name[strlen(name)-2]=='.') {
         int pfd[2];
@@ -89,6 +85,12 @@ void c_file(char name[]) {
             }
         }
         else {
+           int wstatus1;
+            pid_t w1;
+            w1 = wait(&wstatus1);
+            if(WIFEXITED(wstatus1)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
+            }
             int wstatus2;
             pid_t w2;
             w2 = wait(&wstatus2);
@@ -101,7 +103,11 @@ void c_file(char name[]) {
             int no_warnings;
 
             char buffer[100];
-            read(pfd[0], buffer, sizeof(buffer));
+            int check = read(pfd[0], buffer, sizeof(buffer));
+            if(check==-1) {
+                printf("error at read()");
+                exit(1);
+            }
 
             char *token;
             token = strtok(buffer, " ");
@@ -177,6 +183,12 @@ void c_file(char name[]) {
             }
         }
         else {
+            int wstatus1;
+            pid_t w1;
+            w1 = wait(&wstatus1);
+            if(WIFEXITED(wstatus1)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
+            }
             int wstatus2;
             pid_t w2;
             w2 = wait(&wstatus2);
@@ -236,7 +248,6 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
                 break;
         }
     }
-
 }
 
 // symbolic link commands
@@ -245,13 +256,14 @@ void change_permissions(char name[]) {
     pid2 = fork();
 
     if(pid2<0) {
-
         printf("error at fork()\n");
         exit(1);
     }
     else if(pid2==0) {
-        mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
-        int changed = chmod(name, permissions);
+        // mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
+        // int changed = chmod(name, permissions);
+
+        int changed = execlp("chmod", "chmod", "u+rwx,g+rw-x,o-rwx", name, NULL);
 
         if(changed == -1) {
             printf("error at changing permissions");
@@ -259,12 +271,18 @@ void change_permissions(char name[]) {
         }
     }
     else {
-        int wstatus2;
-        pid_t w2;
-        w2 = wait(&wstatus2);
-        if(WIFEXITED(wstatus2)) {
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-        }
+        int wstatus1;
+            pid_t w1;
+            w1 = wait(&wstatus1);
+            if(WIFEXITED(wstatus1)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
+            }
+            int wstatus2;
+            pid_t w2;
+            w2 = wait(&wstatus2);
+            if(WIFEXITED(wstatus2)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+            }
     }
 }
 
@@ -321,7 +339,6 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
 }
 
 // directory commands
-
 void create_new_file(char name[]) {
     pid_t pid2;
     pid2 = fork();
@@ -349,12 +366,18 @@ void create_new_file(char name[]) {
         close(created);
     }
     else {
-        int wstatus2;
-        pid_t w2;
-        w2 = wait(&wstatus2);
-        if(WIFEXITED(wstatus2)) {
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+        int wstatus1;
+        pid_t w1;
+        w1 = wait(&wstatus1);
+        if(WIFEXITED(wstatus1)) {
+            printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
         }
+            int wstatus2;
+            pid_t w2;
+            w2 = wait(&wstatus2);
+            if(WIFEXITED(wstatus2)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+            }
     }
 }
 
@@ -424,6 +447,7 @@ char* get_commands() {
     return commands;
 }
 
+//go to the designated type
 void execute_commands_for_regular_file(char name[]) {
     char commands[NUMBER_OF_COMMANDS];
 
@@ -459,9 +483,6 @@ int main(int argc, char **argv) {
 
     for(int i=1;i<argc;i++) {
         strcpy(path, argv[i]);
-        printf("%s\n", path);
-
-        // doresc sa mor <3
         
         int i = strlen(path) - 1;
         while(i>=0 && path[i]!='/') {
@@ -476,9 +497,7 @@ int main(int argc, char **argv) {
             j++;
             i++;
         }  
-        name[i] = '\0';
-
-        printf("%s %s\n", name, path);
+        name[j] = '\0';
 
         struct stat st;
 
@@ -513,13 +532,6 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            int wstatus;
-            pid_t w;
-            w = wait(&wstatus);
-            if(WIFEXITED(wstatus)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-            }
-
             if(S_ISREG(st.st_mode)) {
                 c_file(name);
             }
@@ -529,6 +541,14 @@ int main(int argc, char **argv) {
             else if(S_ISDIR(st.st_mode)) {
                 create_new_file(name);
             }
+
+            // Tried:
+            // int wstatus;
+            // pid_t w;
+            // w = wait(&wstatus);
+            // if(WIFEXITED(wstatus)) {
+            //     printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
+            // }
         }
     }
 

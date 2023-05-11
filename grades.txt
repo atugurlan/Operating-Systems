@@ -1,1 +1,3 @@
-error.c : 01
+hello.c : 10hello.c:10
+hello.c:10
+hello.c:10
