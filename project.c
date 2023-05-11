@@ -7,10 +7,15 @@
 #include<dirent.h>
 #include<fcntl.h>
 #include<sys/wait.h>
+#include<errno.h>
 
 #define NUMBER_OF_COMMANDS 10
 
 void reset_commands(char *name);
+
+void check_correctness_commands(char commands[], char name[]);
+
+//print the menu for the 3 types of inputs
 
 void menu_regular_files() {
     printf("--- MENU ---\n");
@@ -39,6 +44,8 @@ void menu_directories() {
     printf("Count how many c files there are in the directory: -c\n");
 }
 
+//get the access rights
+
 void check_access_rights(mode_t mode) {
     printf("User:\n");
     printf("Read - %s\n", ((mode & S_IRUSR)!=0) ? "Yes" : "No");
@@ -54,94 +61,121 @@ void check_access_rights(mode_t mode) {
     printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
 
+
 // regular file commands
-
-int count_lines(char name[]) {
-    FILE *f = fopen(name, "r");
-    if(f == NULL) {
-        printf("error at opening file\n");
-        exit(3);
-    }
-
-    char c;
-    c = fgetc(f);
-    if(c == EOF) {
-        return 0;
-    }
-
-    int no_lines = 1;
-    while(c != EOF) {
-        if(c == '\n') {
-            no_lines++;
-        }
-
-        c = fgetc(f);
-    }
-
-    return no_lines;
-}
 
 void c_file(char name[]) {
     if(name[strlen(name)-1]=='c' && name[strlen(name)-2]=='.') {
-        int no_errors = 0;
-        int no_warnings = 0;
+        int pfd[2];
+        pid_t pid2;
 
-        //create pipe
-
-        // execlp("bash", "bash", "compile.sh", name, NULL);
-
-        int score;
-
-        if(no_errors == 0) {
-            if(no_warnings == 0) {
-                score = 10;
-            }
-            else if(no_warnings > 10) {
-                score = 2;
-            }
-            else {
-                score = 2 + 8 * (10 - no_warnings) / 10;
-            }
-        } 
-        else if(no_errors >= 1) {
-            score = 1;
+        if(pipe(pfd)<0) {
+            perror(strerror(errno));
+            exit(errno);
         }
 
-        int fd = open("grades.txt", O_RDWR);
-        if(fd == -1) {
-            printf("error for fd()");
-            exit(3);
+        if((pid2=fork())<0) {
+            perror("Child process creation failed\n");
+            exit(1);
         }
+        else if(pid2==0) {
+            close(pfd[0]);
+            dup2(pfd[1], 1);
 
-        char score_text[3];
-        score_text[0] = score/10 + '0';
-        score_text[1] = score%10 + '0';
-
-        char file_text[100];
-        strcpy(file_text, name);
-        strcat(file_text, " : ");
-        strcat(file_text, score_text);
-
-        int wrote = write(fd, file_text, strlen(file_text));
-        if(wrote == -1) {
-            printf("error at writting\n");
-            exit(3);
+            int check = execlp("bash", "bash", "compile.sh", name, NULL);
+            if(check==-1) {
+                printf("Error calling exec\n");
+                exit(1);
+            }
         }
-        close(fd);
+        else {
+            int wstatus2;
+            pid_t w2;
+            w2 = wait(&wstatus2);
+            if(WIFEXITED(wstatus2)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+            }
+            close(pfd[1]);
+
+            int no_errors = 0;
+            int no_warnings = 0;
+
+            char buffer[100];
+            read(pfd[0], buffer, sizeof(buffer));
+
+            printf("%s\n", buffer);
+
+            close(pfd[0]);
+
+            int score;
+
+            if(no_errors == 0) {
+                if(no_warnings == 0) {
+                    score = 10;
+                }
+                else if(no_warnings > 10) {
+                    score = 2;
+                }
+                else {
+                    score = 2 + 8 * (10 - no_warnings) / 10;
+                }
+            } 
+            else if(no_errors >= 1) {
+                score = 1;
+            }
+
+            int fd = open("grades.txt", O_RDWR);
+            if(fd == -1) {
+                printf("error for fd()");
+                exit(3);
+            }
+
+            char score_text[3];
+            score_text[0] = score/10 + '0';
+            score_text[1] = score%10 + '0';
+
+            char file_text[100];
+            strcpy(file_text, name);
+            strcat(file_text, " : ");
+            strcat(file_text, score_text);
+
+            int wrote = write(fd, file_text, strlen(file_text));
+            if(wrote == -1) {
+                printf("error at writting\n");
+                exit(3);
+            }
+            close(fd);
+        }
     }
     else {
-        int lines = count_lines(name);
-        printf("Number of lines: %d\n", lines);
+        pid_t pid2;
+        pid2 = fork();
+
+        if(pid2<0) {
+            printf("error at fork() 2\n");
+            exit(1);
+        }
+        else if(pid2==0) {
+            int check = execlp("wc", "wc", "-l", name, NULL);
+            if(check==-1) {
+                printf("error at execlp");
+                exit(1);
+            }
+        }
+        else {
+            int wstatus2;
+            pid_t w2;
+            w2 = wait(&wstatus2);
+            if(WIFEXITED(wstatus2)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+            }
+        }
     }
     
 }
 
 void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
-    struct stat st;
-    if(stat(name, &st)==-1) {
-        printf("Error stat() for regular file in commands_regular_files\n");
-        exit(1);
-    }
+    check_correctness_commands(commands, name);
 
     char letters[6] = "ndhmal";
     for(int i=1;i<strlen(commands);i++) {
@@ -149,6 +183,12 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
             printf("You entered a command that is not in the commands menu\n");
             reset_commands(name);
         }
+    }
+
+    struct stat st;
+    if(stat(name, &st)==-1) {
+        printf("Error stat() for regular file in commands_regular_files\n");
+        exit(1);
     }
 
     for(int i=1;i<strlen(commands);i++) {
@@ -186,23 +226,36 @@ void commands_regular_files(char name[], char commands[NUMBER_OF_COMMANDS]) {
 }
 
 // symbolic link commands
-
 void change_permissions(char name[]) {
-    mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
-    int changed = chmod(name, permissions);
+    pid_t pid2;
+    pid2 = fork();
 
-    if(changed == -1) {
-        printf("error at changing permissions");
-        exit(3);
+    if(pid2<0) {
+
+        printf("error at fork()\n");
+        exit(1);
+    }
+    else if(pid2==0) {
+        mode_t permissions = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP;
+        int changed = chmod(name, permissions);
+
+        if(changed == -1) {
+            printf("error at changing permissions");
+            exit(3);
+        }
+    }
+    else {
+        int wstatus2;
+        pid_t w2;
+        w2 = wait(&wstatus2);
+        if(WIFEXITED(wstatus2)) {
+            printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+        }
     }
 }
 
 void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
-    struct stat link, targeted_file;
-    if(lstat(name, &link)==-1) {
-        printf("Error lstat() for symlink in commands_symbolic_links\n");
-        exit(1);
-    }
+    check_correctness_commands(commands, name);
 
     char letters[5] = "nldta";
     for(int i=1;i<strlen(commands);i++) {
@@ -210,6 +263,12 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
             printf("You entered a command that is not in the commands menu\n");
             reset_commands(name);
         }
+    }
+
+    struct stat link, targeted_file;
+    if(lstat(name, &link)==-1) {
+        printf("Error lstat() for symlink in commands_symbolic_links\n");
+        exit(1);
     }
 
     for(int i=1;i<strlen(commands);i++) {
@@ -245,32 +304,49 @@ void commands_symbolic_links(char *name, char commands[NUMBER_OF_COMMANDS]) {
             break;
         }
     }
-
-    change_permissions(name);
 }
 
 // directory commands
 
 void create_new_file(char name[]) {
-    char file_name[100];
-    char path[150];
-
-    strcpy(file_name, name);
-    strcat(file_name, "_file.txt");
-
-    strcpy(path, name);
-    strcat(path, "/");
-    strcat(path, file_name);
-
-    int created = creat(path, S_IRUSR);
-    if(created == -1) {
-        printf("error at creating file\n");
-        exit(2);
+    pid_t pid2;
+    pid2 = fork();
+ 
+    if(pid2<0) {
+        printf("error at fork()\n");
+        exit(1);
     }
-    close(created);
+    else if(pid2==0) {
+        char file_name[100];
+        char path[150];
+
+        strcpy(file_name, name);
+        strcat(file_name, "_file.txt");
+
+        strcpy(path, name);
+        strcat(path, "/");
+        strcat(path, file_name);
+
+        int created = creat(path, S_IRUSR);
+        if(created == -1) {
+            printf("error at creating file\n");
+            exit(2);
+        }
+        close(created);
+    }
+    else {
+        int wstatus2;
+        pid_t w2;
+        w2 = wait(&wstatus2);
+        if(WIFEXITED(wstatus2)) {
+            printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+        }
+    }
 }
 
 void commands_directory(char *name, char commands[]) {
+    check_correctness_commands(commands, name);
+
     char letters[4] = "ndac";
     for(int i=1;i<strlen(commands);i++) {
         if(strchr(letters, commands[i]) == NULL) {
@@ -318,8 +394,6 @@ void commands_directory(char *name, char commands[]) {
         }
     }
 
-    create_new_file(name);
-
     closedir(dir);
 }
 
@@ -336,100 +410,20 @@ char* get_commands() {
     return commands;
 }
 
-void check_correctness_commands(char commands[], char name[]) {
-    if(commands[0]!='-') {
-        printf("\n\nThe commands you entered are in the wrong format\n");
-        printf("Please enter the commands instructions as follow: -xyzetc, where x, y, z etc are the commands in questions\n");
-        reset_commands(name);
-    }
-}
-
 void execute_commands_for_regular_file(char name[]) {
     char commands[NUMBER_OF_COMMANDS];
 
-    pid_t pid1, pid2;
-    pid1 = fork();
-
-    if(pid1 < 0) {
-        printf("error at fork() for child 1");
-        exit(1);
-    }
-    else if(pid1 == 0) {
-        menu_regular_files();
-        strcpy(commands, get_commands());
-        check_correctness_commands(commands, name);
-        commands_regular_files(name, commands);
-    }
-    else {
-        int wstatus;
-        pid_t w;
-        w = wait(&wstatus);
-        if(WIFEXITED(wstatus)) {
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
-
-        pid2 = fork();
-
-        if(pid2 < 0) {
-            printf("error at fork() for child 1\n");
-            exit(1);
-        }
-        else if(pid2 == 0) {
-            c_file(name);
-        }
-        else {
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
-        }
-    }
+    menu_regular_files();
+    strcpy(commands, get_commands());
+    commands_regular_files(name, commands);
 }
 
 void execute_commands_for_symbolic_link(char name[]) {
     char commands[NUMBER_OF_COMMANDS];
 
-    pid_t pid1, pid2;
-    pid1 = fork();
-
-    if(pid1 < 0) {
-        printf("error at fork() for child 1");
-        exit(1);
-    }
-    else if(pid1 == 0) {
-        menu_symbolic_link();
-        strcpy(commands, get_commands());
-        check_correctness_commands(commands, name);
-        commands_symbolic_links(name, commands);
-    }
-    else {
-        int wstatus;
-        pid_t w;
-        w = wait(&wstatus);
-        if(WIFEXITED(wstatus)) {
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
-
-        pid2 = fork();
-
-        if(pid2 < 0) {
-            printf("error at fork() for child 1\n");
-            exit(1);
-        }
-        else if(pid2 == 0) {
-            change_permissions(name);
-        }
-        else {
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
-        }
-    }
+    menu_symbolic_link();
+    strcpy(commands, get_commands());
+    commands_symbolic_links(name, commands);
 }
 
 void execute_commands_for_directory(char name[]) {
@@ -437,73 +431,7 @@ void execute_commands_for_directory(char name[]) {
 
     menu_directories();
     strcpy(commands, get_commands());
-    check_correctness_commands(commands, name);
     commands_directory(name, commands);
-
-    pid_t pid1, pid2;
-    pid1 = fork();
-
-    if(pid1 < 0) {
-        printf("error at fork() for child 1");
-        exit(1);
-    }
-    else if(pid1 == 0) {
-            menu_directories();
-        strcpy(commands, get_commands());
-        check_correctness_commands(commands, name);
-        commands_directory(name, commands);
-    }
-    else {
-        int wstatus;
-        pid_t w;
-        w = wait(&wstatus);
-        if(WIFEXITED(wstatus)) {
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-        }
-
-        pid2 = fork();
-
-        if(pid2 < 0) {
-            printf("error at fork() for child 1\n");
-            exit(1);
-        }
-        else if(pid2 == 0) {
-            c_file(name);
-        }
-        else {
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
-        }
-    }
-}
-
-void check_type(char name[]) {
-    struct stat st;
-
-    if(lstat(name, &st)==-1) {
-        printf("Error lstat() in function check_type\n");
-        exit(1);
-    }
-
-    if(S_ISREG(st.st_mode)) {
-        printf("%s - REGULAR FILE\n", name);
-        execute_commands_for_regular_file(name);
-    }
-    else if(S_ISLNK(st.st_mode)) {
-        printf("%s - SYMBOLIC LINK\n", name);
-        execute_commands_for_symbolic_link(name);
-    }
-    else if(S_ISDIR(st.st_mode)) {
-        printf("%s - DIRECTORY\n", name);
-        execute_commands_for_directory(name);
-    }
-    else {
-        printf("%s - UNKNOWN\n", name);
-    }
 }
 
 int main(int argc, char **argv) {
@@ -512,18 +440,119 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    for(int i=1;i<argc;i++) {
-        //prgramul face copil in copil
-        //trebe parintele sa aibe 2 copii
-        //TO DO!!!
+    char path[50];
+    char name[50];
 
-        check_type(argv[i]);
+    for(int i=1;i<argc;i++) {
+        strcpy(path, argv[i]);
+        printf("%s\n", path);
+
+        // doresc sa mor <3
+        
+        int i = strlen(path) - 1;
+        while(i>=0 && path[i]!='/') {
+            i--;
+        }
+        i = i + 1;
+
+        int j=0;
+        while(i<strlen(path)) {
+            name[j] = path[i];
+            j++;
+            i++;
+        }  
+
+        printf("%s %s\n", name, path);
+
+        struct stat st;
+
+        if(lstat(name, &st)==-1) {
+            printf("Error lstat() in function check_type\n");
+            exit(1);
+        }
+
+        pid_t pid1;
+        pid1 = fork();
+
+        if(pid1 < 0) {
+            printf("error at fork() for child 1\n");
+            exit(1);
+        }
+        else if(pid1 == 0) {
+            if(S_ISREG(st.st_mode)) {
+                printf("%s - REGULAR FILE\n", name);
+                execute_commands_for_regular_file(name);
+            }
+            else if(S_ISLNK(st.st_mode)) {
+                printf("%s - SYMBOLIC LINK\n", name);
+                execute_commands_for_symbolic_link(name);
+            }
+            else if(S_ISDIR(st.st_mode)) {
+                printf("%s - DIRECTORY\n", name);
+                execute_commands_for_directory(name);
+            }
+            else {
+                printf("%s - UNKNOWN\n", name);
+                exit(1);
+            }
+        }
+        else {
+            int wstatus;
+            pid_t w;
+            w = wait(&wstatus);
+            if(WIFEXITED(wstatus)) {
+                printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
+            }
+
+            if(S_ISREG(st.st_mode)) {
+                c_file(name);
+            }
+            else if(S_ISLNK(st.st_mode)) {
+                change_permissions(name);
+            }
+            else if(S_ISDIR(st.st_mode)) {
+                create_new_file(name);
+            }
+        }
     }
 
     return 0;
 }
 
 void reset_commands(char name[]) {
+    char commands[NUMBER_OF_COMMANDS];
+
     printf("\n\nRenter the commands:\n");
-    check_type(name);
+
+    struct stat st;
+
+    if(lstat(name, &st)==-1) {
+        printf("Error lstat() in function check_type\n");
+        exit(1);
+    }
+
+    if(S_ISREG(st.st_mode)) {
+        menu_regular_files();
+        strcpy(commands, get_commands());
+        commands_regular_files(name, commands);
+    }
+    else if(S_ISLNK(st.st_mode)) {
+        menu_symbolic_link();
+        strcpy(commands, get_commands());
+        commands_symbolic_links(name, commands);
+    }
+    else if(S_ISDIR(st.st_mode)) {
+        menu_directories();
+        strcpy(commands, get_commands());
+        commands_directory(name, commands);
+    }
 }
+
+void check_correctness_commands(char commands[], char name[]) {
+    if(commands[0]!='-') {
+        printf("\n\nThe commands you entered are in the wrong format\n");
+        printf("Please enter the commands instructions as follow: -xyzetc, where x, y, z etc are the commands in questions\n");
+        reset_commands(name);
+    }
+}
+
