@@ -1,1 +1,1 @@
-hello.c : 10
+error.c : 01

@@ -97,13 +97,25 @@ void c_file(char name[]) {
             }
             close(pfd[1]);
 
-            int no_errors = 0;
-            int no_warnings = 0;
+            int no_errors;
+            int no_warnings;
 
             char buffer[100];
             read(pfd[0], buffer, sizeof(buffer));
 
-            printf("%s\n", buffer);
+            char *token;
+            token = strtok(buffer, " ");
+            int counter = 0;
+            while(token != NULL) {
+                if(counter == 0) {
+                    no_errors = atoi(token);
+                }
+                else {
+                    no_warnings = atoi(token);
+                }
+                token = strtok(NULL, " ");
+                counter++;
+            }
 
             close(pfd[0]);
 
@@ -131,8 +143,10 @@ void c_file(char name[]) {
             }
 
             char score_text[3];
+
             score_text[0] = score/10 + '0';
             score_text[1] = score%10 + '0';
+            score_text[2] = '\0';
 
             char file_text[100];
             strcpy(file_text, name);
@@ -455,12 +469,14 @@ int main(int argc, char **argv) {
         }
         i = i + 1;
 
+        name[0] = '\0';
         int j=0;
         while(i<strlen(path)) {
             name[j] = path[i];
             j++;
             i++;
         }  
+        name[i] = '\0';
 
         printf("%s %s\n", name, path);
 
