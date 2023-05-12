@@ -35,5 +35,8 @@
   ],
   "C_Cpp_Runner.useAddressSanitizer": false,
   "C_Cpp.errorSquiggles": "disabled",
-  "C_Cpp_Runner.showCompilationTime": false
+  "C_Cpp_Runner.showCompilationTime": false,
+  "files.associations": {
+    "stat.h": "c"
+  }
 }

@@ -59,143 +59,145 @@ void check_access_rights(mode_t mode) {
     printf("Exec - %s\n", ((mode & S_IXOTH)!=0) ? "Yes" : "No");
 }
 
-// regular file commands
+// wait for processes
+void wait_processes() {
+    int count = 1;
+    int wstatus;
+    pid_t w;
+    
+    while(count<=2) {
+        w = wait(&wstatus);
+        if(WIFEXITED(wstatus)) {
+            printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
+        }
+        count++;
+    }
+}
+
 void c_file(char name[]) {
-    if(name[strlen(name)-1]=='c' && name[strlen(name)-2]=='.') {
-        int pfd[2];
-        pid_t pid2;
+    int pfd[2];
+    pid_t pid2;
 
-        if(pipe(pfd)<0) {
-            perror(strerror(errno));
-            exit(errno);
-        }
+    if(pipe(pfd)<0) {
+        perror(strerror(errno));
+        exit(errno);
+    }
 
-        if((pid2=fork())<0) {
-            perror("Child process creation failed\n");
+    if((pid2=fork())<0) {
+        perror("Child process creation failed\n");
+        exit(1);
+    }
+    else if(pid2==0) {
+        close(pfd[0]);
+        dup2(pfd[1], 1);
+
+        int check = execlp("bash", "bash", "compile.sh", name, NULL);
+        if(check==-1) {
+            printf("Error calling exec\n");
             exit(1);
-        }
-        else if(pid2==0) {
-            close(pfd[0]);
-            dup2(pfd[1], 1);
-
-            int check = execlp("bash", "bash", "compile.sh", name, NULL);
-            if(check==-1) {
-                printf("Error calling exec\n");
-                exit(1);
-            }
-        }
-        else {
-           int wstatus1;
-            pid_t w1;
-            w1 = wait(&wstatus1);
-            if(WIFEXITED(wstatus1)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
-            }
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
-            close(pfd[1]);
-
-            int no_errors;
-            int no_warnings;
-
-            char buffer[100];
-            int check = read(pfd[0], buffer, sizeof(buffer));
-            if(check==-1) {
-                printf("error at read()");
-                exit(1);
-            }
-
-            char *token;
-            token = strtok(buffer, " ");
-            int counter = 0;
-            while(token != NULL) {
-                if(counter == 0) {
-                    no_errors = atoi(token);
-                }
-                else {
-                    no_warnings = atoi(token);
-                }
-                token = strtok(NULL, " ");
-                counter++;
-            }
-
-            close(pfd[0]);
-
-            int score;
-
-            if(no_errors == 0) {
-                if(no_warnings == 0) {
-                    score = 10;
-                }
-                else if(no_warnings > 10) {
-                    score = 2;
-                }
-                else {
-                    score = 2 + 8 * (10 - no_warnings) / 10;
-                }
-            } 
-            else if(no_errors >= 1) {
-                score = 1;
-            }
-
-            int fd = open("grades.txt", O_RDWR);
-            if(fd == -1) {
-                printf("error for fd()");
-                exit(3);
-            }
-
-            char score_text[3];
-
-            score_text[0] = score/10 + '0';
-            score_text[1] = score%10 + '0';
-            score_text[2] = '\0';
-
-            char file_text[100];
-            strcpy(file_text, name);
-            strcat(file_text, " : ");
-            strcat(file_text, score_text);
-
-            int wrote = write(fd, file_text, strlen(file_text));
-            if(wrote == -1) {
-                printf("error at writting\n");
-                exit(3);
-            }
-            close(fd);
         }
     }
     else {
-        pid_t pid2;
-        pid2 = fork();
+        wait_processes();
 
-        if(pid2<0) {
-            printf("error at fork() 2\n");
+        close(pfd[1]);
+
+        int no_errors;
+        int no_warnings;
+
+        char buffer[100];
+        int check = read(pfd[0], buffer, sizeof(buffer));
+        if(check==-1) {
+            printf("error at read()");
             exit(1);
         }
-        else if(pid2==0) {
-            int check = execlp("wc", "wc", "-l", name, NULL);
-            if(check==-1) {
-                printf("error at execlp");
-                exit(1);
+
+        char *token;
+        token = strtok(buffer, " ");
+        int counter = 0;
+        while(token != NULL) {
+            if(counter == 0) {
+                no_errors = atoi(token);
             }
+            else {
+                no_warnings = atoi(token);
+            }
+            token = strtok(NULL, " ");
+            counter++;
         }
-        else {
-            int wstatus1;
-            pid_t w1;
-            w1 = wait(&wstatus1);
-            if(WIFEXITED(wstatus1)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
+
+        close(pfd[0]);
+
+        int score;
+
+        if(no_errors == 0) {
+            if(no_warnings == 0) {
+                score = 10;
             }
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
+            else if(no_warnings > 10) {
+                score = 2;
             }
+            else {
+                score = 2 + 8 * (10 - no_warnings) / 10;
+            }
+        } 
+        else if(no_errors >= 1) {
+            score = 1;
         }
+
+        int fd = open("grades.txt", O_RDWR);
+        if(fd == -1) {
+            printf("error for fd()");
+            exit(3);
+        }
+
+        char score_text[3];
+
+        score_text[0] = score/10 + '0';
+        score_text[1] = score%10 + '0';
+        score_text[2] = '\0';
+
+        char file_text[100];
+        strcpy(file_text, name);
+        strcat(file_text, " : ");
+        strcat(file_text, score_text);
+
+        int wrote = write(fd, file_text, strlen(file_text));
+        if(wrote == -1) {
+            printf("error at writting\n");
+            exit(3);
+        }
+        close(fd);
+    }
+}
+
+void not_c_file(char name[]) {
+    pid_t pid2;
+    pid2 = fork();
+
+    if(pid2<0) {
+        printf("error at fork() 2\n");
+        exit(1);
+    }
+    else if(pid2==0) {
+        int check = execlp("wc", "wc", "-l", name, NULL);
+        if(check==-1) {
+            printf("error at execlp");
+            exit(1);
+        }
+    }
+    else {
+        wait_processes();
+    }
+}
+
+// regular file commands
+void check_c_file(char name[]) {
+    if(name[strlen(name)-1]=='c' && name[strlen(name)-2]=='.') {
+        c_file(name);    
+    }
+    else {
+        not_c_file(name);
     }
     
 }
@@ -271,18 +273,7 @@ void change_permissions(char name[]) {
         }
     }
     else {
-        int wstatus1;
-            pid_t w1;
-            w1 = wait(&wstatus1);
-            if(WIFEXITED(wstatus1)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
-            }
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
+        wait_processes();
     }
 }
 
@@ -366,18 +357,7 @@ void create_new_file(char name[]) {
         close(created);
     }
     else {
-        int wstatus1;
-        pid_t w1;
-        w1 = wait(&wstatus1);
-        if(WIFEXITED(wstatus1)) {
-            printf("The process with PID <%d> has ended with the exit code <%d>\n", w1, WEXITSTATUS(wstatus1));
-        }
-            int wstatus2;
-            pid_t w2;
-            w2 = wait(&wstatus2);
-            if(WIFEXITED(wstatus2)) {
-                printf("The process with PID <%d> has ended with the exit code <%d>\n", w2, WEXITSTATUS(wstatus2));
-            }
+        wait_processes();
     }
 }
 
@@ -390,15 +370,6 @@ void commands_directory(char *name, char commands[]) {
             printf("You entered a command that is not in the commands menu\n");
             reset_commands(name);
         }
-    }
-
-    DIR *dir;
-    struct dirent *entry;
-    dir = opendir(name);
-
-    if(dir==NULL) {
-        printf("Error at opening directory\n");
-        exit(1);
     }
 
     struct stat st;
@@ -416,6 +387,15 @@ void commands_directory(char *name, char commands[]) {
                 check_access_rights(st.st_mode);
                 break;
             case 'c':
+                DIR *dir;
+                struct dirent *entry;
+                dir = opendir(name);
+
+                if(dir==NULL) {
+                    printf("Error at opening directory\n");
+                    exit(1);
+                }
+
                 int count = 0;
 
                 while( (entry = readdir(dir)) != NULL ) {
@@ -424,14 +404,14 @@ void commands_directory(char *name, char commands[]) {
                 }
 
                 printf("Number of C files: %d\n", count);
+
+                closedir(dir);
                 break;
             default:
                 printf("You entered a command that is not in the commands menu\n");
                 reset_commands(name);
         }
     }
-
-    closedir(dir);
 }
 
 char* get_commands() {
@@ -526,10 +506,8 @@ int main(int argc, char **argv) {
                 printf("%s - DIRECTORY\n", name);
                 execute_commands_for_directory(name);
             }
-            else {
-                printf("%s - UNKNOWN\n", name);
-                exit(1);
-            }
+
+            exit(EXIT_SUCCESS);
         }
         else {
             if(S_ISREG(st.st_mode)) {
@@ -541,14 +519,6 @@ int main(int argc, char **argv) {
             else if(S_ISDIR(st.st_mode)) {
                 create_new_file(name);
             }
-
-            // Tried:
-            // int wstatus;
-            // pid_t w;
-            // w = wait(&wstatus);
-            // if(WIFEXITED(wstatus)) {
-            //     printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
-            // }
         }
     }
 
