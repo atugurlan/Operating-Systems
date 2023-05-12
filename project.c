@@ -65,7 +65,7 @@ void wait_processes() {
     int wstatus;
     pid_t w;
     
-    while(count<=2) {
+    while(count<=1) {
         w = wait(&wstatus);
         if(WIFEXITED(wstatus)) {
             printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
@@ -74,6 +74,7 @@ void wait_processes() {
     }
 }
 
+// regular file commands
 void c_file(char name[]) {
     int pfd[2];
     pid_t pid2;
@@ -145,9 +146,9 @@ void c_file(char name[]) {
             score = 1;
         }
 
-        int fd = open("grades.txt", O_RDWR);
+        int fd = open("grades.txt", O_RDWR | O_APPEND, S_IRWXU);
         if(fd == -1) {
-            printf("error for fd()");
+            printf("error for open()");
             exit(3);
         }
 
@@ -180,9 +181,11 @@ void not_c_file(char name[]) {
         exit(1);
     }
     else if(pid2==0) {
+        printf("Number of lines in the file %s: ", name);
         int check = execlp("wc", "wc", "-l", name, NULL);
+        printf("1\n");
         if(check==-1) {
-            printf("error at execlp");
+            printf("error at execlp()");
             exit(1);
         }
     }
@@ -191,7 +194,6 @@ void not_c_file(char name[]) {
     }
 }
 
-// regular file commands
 void check_c_file(char name[]) {
     if(name[strlen(name)-1]=='c' && name[strlen(name)-2]=='.') {
         c_file(name);    
@@ -349,7 +351,8 @@ void create_new_file(char name[]) {
         strcat(path, "/");
         strcat(path, file_name);
 
-        int created = creat(path, S_IRUSR);
+        // int created = creat(path, S_IRUSR);
+        int created = execlp("touch", "touch", path, NULL);
         if(created == -1) {
             printf("error at creating file\n");
             exit(2);
@@ -405,7 +408,11 @@ void commands_directory(char *name, char commands[]) {
 
                 printf("Number of C files: %d\n", count);
 
-                closedir(dir);
+                int closed = closedir(dir);
+                if(closed == -1) {
+                    printf("error at closingdir\n");
+                    exit(1);
+                }
                 break;
             default:
                 printf("You entered a command that is not in the commands menu\n");
@@ -510,8 +517,17 @@ int main(int argc, char **argv) {
             exit(EXIT_SUCCESS);
         }
         else {
+            // wait_processes();
+            pid_t w;
+            int wstatus;
+
+            w = wait(&wstatus);
+            if(WIFEXITED(wstatus)) {
+                printf("process with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
+            }
+
             if(S_ISREG(st.st_mode)) {
-                c_file(name);
+                check_c_file(name);
             }
             else if(S_ISLNK(st.st_mode)) {
                 change_permissions(name);
