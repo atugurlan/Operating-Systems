@@ -1,3 +1,14 @@
-/usr/bin/ld:file.txt: file format not recognized; treating as linker script
-/usr/bin/ld:file.txt:1: syntax error
-collect2: error: ld returned 1 exit status
+error.c: In function ‘main’:
+error.c:4:5: error: too few arguments to function ‘printf’
+    4 |     printf()
+      |     ^~~~~~
+In file included from error.c:1:
+/usr/include/stdio.h:356:12: note: declared here
+  356 | extern int printf (const char *__restrict __format, ...);
+      |            ^~~~~~
+error.c:4:13: error: expected ‘;’ before ‘return’
+    4 |     printf()
+      |             ^
+      |             ;
+    5 |     return 0;
+      |     ~~~~~~   

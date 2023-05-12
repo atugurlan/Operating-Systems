@@ -60,18 +60,27 @@ void check_access_rights(mode_t mode) {
 }
 
 // wait for processes
-void wait_processes() {
+void wait_processes_2() {
     int count = 1;
     int wstatus;
     pid_t w;
     
-    while(count<=1) {
+    while(count<=2) {
         w = wait(&wstatus);
         if(WIFEXITED(wstatus)) {
             printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
         }
         count++;
     }
+}
+
+void wait_processes_1() {
+    int wstatus;
+    pid_t w;
+    w = wait(&wstatus);
+    if(WIFEXITED(wstatus)) {
+        printf("The process with PID <%d> has ended with the exit code <%d>\n", w, WEXITSTATUS(wstatus));
+    }   
 }
 
 // regular file commands
@@ -99,7 +108,8 @@ void c_file(char name[]) {
         }
     }
     else {
-        wait_processes();
+        wait_processes_2();
+        // wait_processes_1();
 
         close(pfd[1]);
 
@@ -154,14 +164,20 @@ void c_file(char name[]) {
 
         char score_text[3];
 
-        score_text[0] = score/10 + '0';
-        score_text[1] = score%10 + '0';
-        score_text[2] = '\0';
+        if(score==10) {
+            score_text[0] = score/10 + '0';
+            score_text[1] = score%10 + '0';
+        }
+        else {
+            score_text[0] = score + '0';
+        }
+        
 
         char file_text[100];
         strcpy(file_text, name);
         strcat(file_text, " : ");
         strcat(file_text, score_text);
+        strcat(file_text, "\n");
 
         int wrote = write(fd, file_text, strlen(file_text));
         if(wrote == -1) {
@@ -190,7 +206,8 @@ void not_c_file(char name[]) {
         }
     }
     else {
-        wait_processes();
+        wait_processes_2();
+        // wait_processes_1();
     }
 }
 
@@ -275,7 +292,8 @@ void change_permissions(char name[]) {
         }
     }
     else {
-        wait_processes();
+        wait_processes_2();
+        // wait_processes_1();
     }
 }
 
@@ -360,7 +378,8 @@ void create_new_file(char name[]) {
         close(created);
     }
     else {
-        wait_processes();
+        wait_processes_2();
+        // wait_processes_1();
     }
 }
 
@@ -517,14 +536,7 @@ int main(int argc, char **argv) {
             exit(EXIT_SUCCESS);
         }
         else {
-            // wait_processes();
-            pid_t w;
-            int wstatus;
-
-            w = wait(&wstatus);
-            if(WIFEXITED(wstatus)) {
-                printf("process with pid %d, exited, status = %d\n", w, WEXITSTATUS(wstatus));
-            }
+            // wait_processes_1();
 
             if(S_ISREG(st.st_mode)) {
                 check_c_file(name);
